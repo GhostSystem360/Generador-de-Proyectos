@@ -89,9 +89,8 @@ echo ""
 echo -e "${GREEN}🚀 Generador de Clean Architecture + Hexagonal + DDD (.NET 10)${NC}"
 echo ""
 echo "Ingrese el nombre del proyecto (ej: Auth, Sales, Orders):"
-read -r -p "Ingrese el nombre del proyecto: " PROJECT_NAME
-PROJECT_NAME=$(printf "%s" "$PROJECT_NAME" | tr -d '\r\n' | xargs)
-echo "DEBUG: [$PROJECT_NAME]"
+read -r -p PROJECT_NAME
+PROJECT_NAME=$(echo "$PROJECT_NAME" | tr -d '\r\n' | xargs)
 
 if [ -z "$PROJECT_NAME" ]; then
   echo -e "${RED}❌ El nombre del proyecto es obligatorio${NC}"
