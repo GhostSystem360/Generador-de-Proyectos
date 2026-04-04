@@ -3,7 +3,7 @@
 echo "🚀 Instalando Project Generator..."
 
 # =========================
-# VALIDAR curl
+# VALIDAR CURL
 # =========================
 if ! command -v curl &> /dev/null; then
   echo "❌ curl no está instalado"
@@ -16,7 +16,7 @@ fi
 mkdir -p "$HOME/bin"
 
 # =========================
-# DESCARGAR SCRIPT REAL
+# DESCARGAR GENERADOR REAL
 # =========================
 curl -fLo "$HOME/bin/projectgenerator" \
 https://raw.githubusercontent.com/GhostSystem360/Generador-de-Proyectos/main/ProjectGenerator.sh
@@ -32,17 +32,26 @@ fi
 chmod +x "$HOME/bin/projectgenerator"
 
 # =========================
-# AGREGAR AL PATH
+# ASEGURAR .bashrc
 # =========================
-if ! echo "$PATH" | grep -q "$HOME/bin"; then
+if [ ! -f "$HOME/.bashrc" ]; then
+  echo "📁 Creando .bashrc..."
+  touch "$HOME/.bashrc"
+fi
+
+# =========================
+# AGREGAR PATH (SI NO EXISTE)
+# =========================
+if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$HOME/.bashrc"; then
   echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
 fi
 
 # =========================
-# RECARGAR SHELL
+# RECARGAR
 # =========================
 source "$HOME/.bashrc"
 
 echo ""
 echo "✅ Instalado correctamente"
+echo "👉 Reinicia la terminal o ejecuta: source ~/.bashrc"
 echo "👉 Usa: projectgenerator NombreProyecto"
