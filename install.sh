@@ -47,4 +47,4 @@ fi
 
 echo ""
 echo "✅ Instalado correctamente"
-echo "👉 Usa: project-generator NombreProyecto"
+echo "👉 Usa: projectgenerator NombreProyecto"
