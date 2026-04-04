@@ -129,8 +129,8 @@ dotnet new sln -n $PROJECT_NAME
 
 echo -e "${BLUE}📦 Creando proyectos .NET 10...${NC}"
 
-dotnet new webapi -n $PROJECT_NAME.Api -f net10.0
-dotnet new webapi -n $PROJECT_NAME.Gateway -f net10.0
+dotnet new webapi -n $PROJECT_NAME.Api -f net10.0 --use-controllers
+dotnet new webapi -n $PROJECT_NAME.Gateway -f net10.0 --use-controllers
 dotnet new classlib -n $PROJECT_NAME.Application -f net10.0
 dotnet new classlib -n $PROJECT_NAME.Domain -f net10.0
 dotnet new classlib -n $PROJECT_NAME.Infrastructure -f net10.0
