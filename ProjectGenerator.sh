@@ -21,6 +21,57 @@ echo -e "${CYAN}╚════════════════════�
 echo ""
 
 # =========================
+# FUNCIÓN PARA AGREGAR CARPETAS AL CSPROJ
+# =========================
+
+add_folders_to_csproj() {
+    local csproj_path=$1
+    shift
+    local folders=("$@")
+
+    # Validar archivo
+    if [ ! -f "$csproj_path" ]; then
+        echo "❌ csproj no encontrado: $csproj_path"
+        return 1
+    fi
+
+    # Crear temp file
+    local tmp_file="${csproj_path}.tmp"
+    local existing_folders
+
+    # Obtener carpetas existentes
+    existing_folders=$(grep -oP '(?<=<Folder Include=")[^"]+' "$csproj_path")
+
+    # Construir nuevas entradas sin duplicados
+    local folder_entries=""
+    for folder in "${folders[@]}"; do
+        if ! echo "$existing_folders" | grep -qx "$folder"; then
+            folder_entries="${folder_entries}    <Folder Include=\"${folder}\" />\n"
+        fi
+    done
+
+    # Si no hay nuevas carpetas, salir
+    if [ -z "$folder_entries" ]; then
+        echo "ℹ️ No hay nuevas carpetas que agregar"
+        return 0
+    fi
+
+    # Insertar ItemGroup antes del cierre de Project
+    awk -v entries="$folder_entries" '
+        BEGIN { inserted=0 }
+        /<\/Project>/ && inserted==0 {
+            print "  <ItemGroup>"
+            printf "%s", entries
+            print "  </ItemGroup>"
+            inserted=1
+        }
+        { print }
+    ' "$csproj_path" > "$tmp_file" && mv "$tmp_file" "$csproj_path"
+
+    echo "✅ Carpetas agregadas correctamente"
+}
+
+# =========================
 # INPUT
 # =========================
 
@@ -29,7 +80,7 @@ echo -e "${GREEN}🚀 Generador de Clean Architecture + Hexagonal + DDD (.NET 10
 echo ""
 echo "Ingrese el nombre del proyecto (ej: Auth, Sales, Orders):"
 read PROJECT_NAME
-PROJECT_NAME=$(echo "$PROJECT_NAME" | tr -d '\r' | xargs)
+PROJECT_NAME=$1
 
 if [ -z "$PROJECT_NAME" ]; then
   echo -e "${RED}❌ El nombre del proyecto es obligatorio${NC}"
@@ -61,12 +112,8 @@ cd "$PROJECT_NAME" || exit
 # Crear solución
 dotnet new sln -n $PROJECT_NAME
 
-# Crear src
-mkdir -p src
-cd src || exit
-
 # =========================
-# PROYECTOS
+# PROYECTOS (directamente en raíz)
 # =========================
 
 echo -e "${BLUE}📦 Creando proyectos .NET 10...${NC}"
@@ -77,38 +124,33 @@ dotnet new classlib -n $PROJECT_NAME.Application -f net10.0
 dotnet new classlib -n $PROJECT_NAME.Domain -f net10.0
 dotnet new classlib -n $PROJECT_NAME.Infrastructure -f net10.0
 
-cd ..
-
 # =========================
 # AGREGAR A SOLUCIÓN
 # =========================
 
 echo "🔗 Agregando proyectos a la solución..."
 
-dotnet sln add src/$PROJECT_NAME.Api/$PROJECT_NAME.Api.csproj
-dotnet sln add src/$PROJECT_NAME.Gateway/$PROJECT_NAME.Gateway.csproj
-dotnet sln add src/$PROJECT_NAME.Application/$PROJECT_NAME.Application.csproj
-dotnet sln add src/$PROJECT_NAME.Domain/$PROJECT_NAME.Domain.csproj
-dotnet sln add src/$PROJECT_NAME.Infrastructure/$PROJECT_NAME.Infrastructure.csproj
+dotnet sln add $PROJECT_NAME.Api/$PROJECT_NAME.Api.csproj
+dotnet sln add $PROJECT_NAME.Gateway/$PROJECT_NAME.Gateway.csproj
+dotnet sln add $PROJECT_NAME.Application/$PROJECT_NAME.Application.csproj
+dotnet sln add $PROJECT_NAME.Domain/$PROJECT_NAME.Domain.csproj
+dotnet sln add $PROJECT_NAME.Infrastructure/$PROJECT_NAME.Infrastructure.csproj
 
 # =========================
 # REFERENCIAS
 # =========================
 
 echo "🔗 Configurando referencias entre capas..."
-
 # Api → Application + Infrastructure
-dotnet add src/$PROJECT_NAME.Api reference src/$PROJECT_NAME.Application
-dotnet add src/$PROJECT_NAME.Api reference src/$PROJECT_NAME.Infrastructure
+dotnet add $PROJECT_NAME.Api reference $PROJECT_NAME.Application
+dotnet add $PROJECT_NAME.Api reference $PROJECT_NAME.Infrastructure
 
 # Infrastructure → Application + Domain
-dotnet add src/$PROJECT_NAME.Infrastructure reference src/$PROJECT_NAME.Application
-dotnet add src/$PROJECT_NAME.Infrastructure reference src/$PROJECT_NAME.Domain
+dotnet add $PROJECT_NAME.Infrastructure reference $PROJECT_NAME.Application
+dotnet add $PROJECT_NAME.Infrastructure reference $PROJECT_NAME.Domain
 
 # Application → Domain
-dotnet add src/$PROJECT_NAME.Application reference src/$PROJECT_NAME.Domain
-
-# Gateway → SIN referencias (desacoplado)
+dotnet add $PROJECT_NAME.Application reference $PROJECT_NAME.Domain
 
 # =========================
 # DOMAIN
@@ -116,17 +158,17 @@ dotnet add src/$PROJECT_NAME.Application reference src/$PROJECT_NAME.Domain
 
 echo "📁 Creando estructura - Domain..."
 
-mkdir -p src/$PROJECT_NAME.Domain/Common/Primitives
-mkdir -p src/$PROJECT_NAME.Domain/Common/Exceptions
-mkdir -p src/$PROJECT_NAME.Domain/Common/Interfaces
-mkdir -p src/$PROJECT_NAME.Domain/Entities
-mkdir -p src/$PROJECT_NAME.Domain/ValueObjects
-mkdir -p src/$PROJECT_NAME.Domain/Aggregates
-mkdir -p src/$PROJECT_NAME.Domain/Enums
-mkdir -p src/$PROJECT_NAME.Domain/Events
-mkdir -p src/$PROJECT_NAME.Domain/Services
-mkdir -p src/$PROJECT_NAME.Domain/Repositories
-mkdir -p src/$PROJECT_NAME.Domain/Specifications
+mkdir -p $PROJECT_NAME.Domain/Common/Primitives
+mkdir -p $PROJECT_NAME.Domain/Common/Exceptions
+mkdir -p $PROJECT_NAME.Domain/Common/Interfaces
+mkdir -p $PROJECT_NAME.Domain/Entities
+mkdir -p $PROJECT_NAME.Domain/ValueObjects
+mkdir -p $PROJECT_NAME.Domain/Aggregates
+mkdir -p $PROJECT_NAME.Domain/Enums
+mkdir -p $PROJECT_NAME.Domain/Events
+mkdir -p $PROJECT_NAME.Domain/Services
+mkdir -p $PROJECT_NAME.Domain/Repositories
+mkdir -p $PROJECT_NAME.Domain/Specifications
 
 # =========================
 # APPLICATION
@@ -134,16 +176,16 @@ mkdir -p src/$PROJECT_NAME.Domain/Specifications
 
 echo "📁 Creando estructura - Application..."
 
-mkdir -p src/$PROJECT_NAME.Application/Features/Commands
-mkdir -p src/$PROJECT_NAME.Application/Features/Queries
-mkdir -p src/$PROJECT_NAME.Application/Common/Behaviors
-mkdir -p src/$PROJECT_NAME.Application/Common/Interfaces
-mkdir -p src/$PROJECT_NAME.Application/Common/Mappings
-mkdir -p src/$PROJECT_NAME.Application/Common/Exceptions
-mkdir -p src/$PROJECT_NAME.Application/EventHandlers
-mkdir -p src/$PROJECT_NAME.Application/DTOs
-mkdir -p src/$PROJECT_NAME.Application/Validators
-mkdir -p src/$PROJECT_NAME.Application/Extensions
+mkdir -p $PROJECT_NAME.Application/Features/Commands
+mkdir -p $PROJECT_NAME.Application/Features/Queries
+mkdir -p $PROJECT_NAME.Application/Common/Behaviors
+mkdir -p $PROJECT_NAME.Application/Common/Interfaces
+mkdir -p $PROJECT_NAME.Application/Common/Mappings
+mkdir -p $PROJECT_NAME.Application/Common/Exceptions
+mkdir -p $PROJECT_NAME.Application/EventHandlers
+mkdir -p $PROJECT_NAME.Application/DTOs
+mkdir -p $PROJECT_NAME.Application/Validators
+mkdir -p $PROJECT_NAME.Application/Extensions
 
 # =========================
 # INFRASTRUCTURE
@@ -151,19 +193,19 @@ mkdir -p src/$PROJECT_NAME.Application/Extensions
 
 echo "📁 Creando estructura - Infrastructure..."
 
-mkdir -p src/$PROJECT_NAME.Infrastructure/Persistence/Contexts
-mkdir -p src/$PROJECT_NAME.Infrastructure/Persistence/Configurations
-mkdir -p src/$PROJECT_NAME.Infrastructure/Persistence/Repositories
-mkdir -p src/$PROJECT_NAME.Infrastructure/Persistence/Interceptors
-mkdir -p src/$PROJECT_NAME.Infrastructure/Persistence/Migrations
-mkdir -p src/$PROJECT_NAME.Infrastructure/Persistence/Seeds
-mkdir -p src/$PROJECT_NAME.Infrastructure/Services
-mkdir -p src/$PROJECT_NAME.Infrastructure/External
-mkdir -p src/$PROJECT_NAME.Infrastructure/Identity
-mkdir -p src/$PROJECT_NAME.Infrastructure/Caching
-mkdir -p src/$PROJECT_NAME.Infrastructure/Messaging
-mkdir -p src/$PROJECT_NAME.Infrastructure/Logging
-mkdir -p src/$PROJECT_NAME.Infrastructure/Extensions
+mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Contexts
+mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Configurations
+mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Repositories
+mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Interceptors
+mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Migrations
+mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Seeds
+mkdir -p $PROJECT_NAME.Infrastructure/Services
+mkdir -p $PROJECT_NAME.Infrastructure/External
+mkdir -p $PROJECT_NAME.Infrastructure/Identity
+mkdir -p $PROJECT_NAME.Infrastructure/Caching
+mkdir -p $PROJECT_NAME.Infrastructure/Messaging
+mkdir -p $PROJECT_NAME.Infrastructure/Logging
+mkdir -p $PROJECT_NAME.Infrastructure/Extensions
 
 # =========================
 # API
@@ -171,12 +213,12 @@ mkdir -p src/$PROJECT_NAME.Infrastructure/Extensions
 
 echo "📁 Creando estructura - Api..."
 
-mkdir -p src/$PROJECT_NAME.Api/Controllers
-mkdir -p src/$PROJECT_NAME.Api/Middleware
-mkdir -p src/$PROJECT_NAME.Api/Filters
-mkdir -p src/$PROJECT_NAME.Api/Extensions
-mkdir -p src/$PROJECT_NAME.Api/Contracts
-mkdir -p src/$PROJECT_NAME.Api/Configurations
+mkdir -p $PROJECT_NAME.Api/Controllers
+mkdir -p $PROJECT_NAME.Api/Middleware
+mkdir -p $PROJECT_NAME.Api/Filters
+mkdir -p $PROJECT_NAME.Api/Contracts
+mkdir -p $PROJECT_NAME.Api/Configurations
+mkdir -p $PROJECT_NAME.Api/Extensions
 
 # =========================
 # GATEWAY
@@ -184,17 +226,88 @@ mkdir -p src/$PROJECT_NAME.Api/Configurations
 
 echo "📁 Creando estructura - Gateway..."
 
-mkdir -p src/$PROJECT_NAME.Gateway/Middleware
-mkdir -p src/$PROJECT_NAME.Gateway/Extensions
-mkdir -p src/$PROJECT_NAME.Gateway/Configurations
-mkdir -p src/$PROJECT_NAME.Gateway/Routes
-mkdir -p src/$PROJECT_NAME.Gateway/Security
-mkdir -p src/$PROJECT_NAME.Gateway/Transformers
-mkdir -p src/$PROJECT_NAME.Gateway/HealthChecks
-mkdir -p src/$PROJECT_NAME.Gateway/Aggregators
-mkdir -p src/$PROJECT_NAME.Gateway/Services
-mkdir -p src/$PROJECT_NAME.Gateway/Models
-mkdir -p src/$PROJECT_NAME.Gateway/Constants
+mkdir -p $PROJECT_NAME.Gateway/Middleware
+mkdir -p $PROJECT_NAME.Gateway/Configurations
+mkdir -p $PROJECT_NAME.Gateway/Routes
+mkdir -p $PROJECT_NAME.Gateway/Security
+mkdir -p $PROJECT_NAME.Gateway/Transformers
+mkdir -p $PROJECT_NAME.Gateway/HealthChecks
+mkdir -p $PROJECT_NAME.Gateway/Aggregators
+mkdir -p $PROJECT_NAME.Gateway/Services
+mkdir -p $PROJECT_NAME.Gateway/Models
+mkdir -p $PROJECT_NAME.Gateway/Constants
+mkdir -p $PROJECT_NAME.Gateway/Extensions
+
+# =========================
+# AGREGAR CARPETAS A CSPROJ
+# =========================
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+echo -e "${CYAN}  📝 Registrando carpetas en .csproj...${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+
+add_folders_to_csproj "$PROJECT_NAME.Domain/$PROJECT_NAME.Domain.csproj" \
+    "Common\\Primitives\\" \
+    "Common\\Exceptions\\" \
+    "Common\\Interfaces\\" \
+    "Entities\\" \
+    "ValueObjects\\" \
+    "Aggregates\\" \
+    "Enums\\" \
+    "Events\\" \
+    "Services\\" \
+    "Repositories\\" \
+    "Specifications\\"
+
+add_folders_to_csproj "$PROJECT_NAME.Application/$PROJECT_NAME.Application.csproj" \
+    "Features\\Commands\\" \
+    "Features\\Queries\\" \
+    "Common\\Behaviors\\" \
+    "Common\\Interfaces\\" \
+    "Common\\Mappings\\" \
+    "Common\\Exceptions\\" \
+    "EventHandlers\\" \
+    "DTOs\\" \
+    "Validators\\" \
+	"Extensions\\"
+
+add_folders_to_csproj "$PROJECT_NAME.Infrastructure/$PROJECT_NAME.Infrastructure.csproj" \
+    "Persistence\\Contexts\\" \
+    "Persistence\\Configurations\\" \
+    "Persistence\\Repositories\\" \
+    "Persistence\\Interceptors\\" \
+    "Persistence\\Migrations\\" \
+    "Persistence\\Seeds\\" \
+    "Services\\" \
+    "External\\" \
+    "Identity\\" \
+    "Caching\\" \
+    "Messaging\\" \
+    "Logging\\" \
+	"Extensions\\"
+
+add_folders_to_csproj "$PROJECT_NAME.Api/$PROJECT_NAME.Api.csproj" \
+    "Controllers\\" \
+    "Middleware\\" \
+    "Filters\\" \
+    "Contracts\\" \
+    "Configurations\\" \
+	"Extensions\\"
+
+add_folders_to_csproj "$PROJECT_NAME.Gateway/$PROJECT_NAME.Gateway.csproj" \
+    "Middleware\\" \
+    "Configurations\\" \
+    "Routes\\" \
+    "Security\\" \
+    "Transformers\\" \
+    "HealthChecks\\" \
+    "Aggregators\\" \
+    "Services\\" \
+    "Models\\" \
+    "Constants\\" \
+	"Extensions\\"
+
+echo -e "${GREEN}✅ Carpetas registradas en archivos .csproj${NC}"
 
 # =========================
 # CREAR CLASES EXTENSIONS POR CAPA
@@ -206,7 +319,7 @@ echo -e "${CYAN}  📝 Generando clases ServicesExtensions...${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 
 # --- Application ServicesExtensions ---
-cat > src/$PROJECT_NAME.Application/Extensions/ApplicationServicesExtensions.cs <<EOF
+cat > $PROJECT_NAME.Application/Extensions/ApplicationServicesExtensions.cs <<EOF
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ${PROJECT_NAME}.Application.Extensions;
@@ -221,7 +334,7 @@ public static class ApplicationServicesExtensions
 EOF
 
 # --- Infrastructure ServicesExtensions ---
-cat > src/$PROJECT_NAME.Infrastructure/Extensions/InfrastructureServicesExtensions.cs <<EOF
+cat > $PROJECT_NAME.Infrastructure/Extensions/InfrastructureServicesExtensions.cs <<EOF
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 
@@ -237,7 +350,7 @@ public static class InfrastructureServicesExtensions
 EOF
 
 # --- Api ServicesExtensions ---
-cat > src/$PROJECT_NAME.Api/Extensions/ApiServicesExtensions.cs <<EOF
+cat > $PROJECT_NAME.Api/Extensions/ApiServicesExtensions.cs <<EOF
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 
@@ -268,22 +381,22 @@ echo ""
 # PAQUETES NUGET - APPLICATION
 # =========================
 echo -e "${BLUE}📦 Application layer...${NC}"
-cd src/$PROJECT_NAME.Application
+cd $PROJECT_NAME.Application
 
 dotnet add package Microsoft.Extensions.DependencyInjection.Abstractions
 
 # Logging
 dotnet add package Microsoft.Extensions.Logging.Abstractions
 
-echo -e "${GREEN}✅ Application: Mediator, FluentValidation, Mapster instalados${NC}"
-cd ../..
+echo -e "${GREEN}✅ Application packages installed${NC}"
+cd ..
 
 # =========================
 # PAQUETES NUGET - INFRASTRUCTURE
 # =========================
 echo ""
 echo -e "${BLUE}📦 Infrastructure layer...${NC}"
-cd src/$PROJECT_NAME.Infrastructure
+cd $PROJECT_NAME.Infrastructure
 
 # Entity Framework Core
 dotnet add package Microsoft.EntityFrameworkCore.SqlServer
@@ -300,15 +413,15 @@ dotnet add package System.IdentityModel.Tokens.Jwt
 # Logging
 dotnet add package Microsoft.Extensions.Logging.Abstractions
 
-echo -e "${GREEN}✅ Infrastructure: EF Core, Serilog, Polly instalados${NC}"
-cd ../..
+echo -e "${GREEN}✅ Infrastructure packages installed${NC}"
+cd ..
 
 # =========================
 # PAQUETES NUGET - API
 # =========================
 echo ""
 echo -e "${BLUE}📦 Api layer...${NC}"
-cd src/$PROJECT_NAME.Api
+cd $PROJECT_NAME.Api
 
 # Swagger
 dotnet add package Swashbuckle.AspNetCore
@@ -324,15 +437,15 @@ dotnet add package Serilog.Sinks.File
 dotnet add package Serilog.Enrichers.Environment
 dotnet add package Serilog.Enrichers.Thread
 
-echo -e "${GREEN}✅ Api: JWT, Swagger, Health Checks, OpenTelemetry instalados${NC}"
-cd ../..
+echo -e "${GREEN}✅ Api packages installed${NC}"
+cd ..
 
 # =========================
 # PAQUETES NUGET - GATEWAY
 # =========================
 echo ""
 echo -e "${BLUE}📦 Gateway layer...${NC}"
-cd src/$PROJECT_NAME.Gateway
+cd $PROJECT_NAME.Gateway
 
 # YARP
 dotnet add package Yarp.ReverseProxy
@@ -346,9 +459,8 @@ dotnet add package Serilog.Sinks.Console
 dotnet add package Serilog.Sinks.File
 dotnet add package Serilog.Enrichers.Environment
 
-
-echo -e "${GREEN}✅ Gateway: YARP, JWT, Serilog, Polly instalados${NC}"
-cd ../..
+echo -e "${GREEN}✅ Gateway packages installed${NC}"
+cd ..
 
 # =========================
 # CREAR .gitignore
@@ -454,9 +566,9 @@ echo -e "  ${BLUE}✔${NC} $PROJECT_NAME.Gateway"
 echo ""
 
 echo -e "${GREEN}Referencias configuradas:${NC}"
-echo -e "  ${BLUE}✔${NC} Api → Application → Domain"
+echo -e "  ${BLUE}✔${NC} Api → Application + Infrastructure"
 echo -e "  ${BLUE}✔${NC} Infrastructure → Application + Domain"
-echo -e "  ${BLUE}✔${NC} Api → Infrastructure (DI)"
+echo -e "  ${BLUE}✔${NC} Application → Domain"
 echo -e "  ${BLUE}✔${NC} Gateway (desacoplado)"
 echo ""
 
@@ -485,7 +597,7 @@ echo -e "${YELLOW}📚 Próximos pasos:${NC}"
 echo -e "  ${BLUE}1.${NC} cd $PROJECT_NAME"
 echo -e "  ${BLUE}2.${NC} Configurar connection strings en appsettings.json"
 echo -e "  ${BLUE}3.${NC} Crear DbContext en Infrastructure/Persistence/Contexts"
-echo -e "  ${BLUE}4.${NC} dotnet ef migrations add InitialCreate -p src/$PROJECT_NAME.Infrastructure -s src/$PROJECT_NAME.Api"
+echo -e "  ${BLUE}4.${NC} dotnet ef migrations add InitialCreate -p $PROJECT_NAME.Infrastructure -s $PROJECT_NAME.Api"
 echo -e "  ${BLUE}5.${NC} Empezar a codear 🚀"
 echo ""
 
