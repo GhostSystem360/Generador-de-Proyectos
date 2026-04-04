@@ -97,15 +97,16 @@ dotnet sln add src/$PROJECT_NAME.Infrastructure/$PROJECT_NAME.Infrastructure.csp
 
 echo "🔗 Configurando referencias entre capas..."
 
-# Api → Application
+# Api → Application + Infrastructure
 dotnet add src/$PROJECT_NAME.Api reference src/$PROJECT_NAME.Application
-
-# Application → Domain
-dotnet add src/$PROJECT_NAME.Application reference src/$PROJECT_NAME.Domain
+dotnet add src/$PROJECT_NAME.Api reference src/$PROJECT_NAME.Infrastructure
 
 # Infrastructure → Application + Domain
 dotnet add src/$PROJECT_NAME.Infrastructure reference src/$PROJECT_NAME.Application
 dotnet add src/$PROJECT_NAME.Infrastructure reference src/$PROJECT_NAME.Domain
+
+# Application → Domain
+dotnet add src/$PROJECT_NAME.Application reference src/$PROJECT_NAME.Domain
 
 # Gateway → SIN referencias (desacoplado)
 

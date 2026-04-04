@@ -16,13 +16,13 @@ fi
 mkdir -p "$HOME/bin"
 
 # =========================
-# DESCARGAR SCRIPT
+# DESCARGAR SCRIPT REAL
 # =========================
-curl -fLo "$HOME/bin/project-generator" \
-https://raw.githubusercontent.com/GhostSystem360/Generador-de-Proyectos/main/install.sh
+curl -fLo "$HOME/bin/projectgenerator" \
+https://raw.githubusercontent.com/GhostSystem360/Generador-de-Proyectos/main/ProjectGenerator.sh
 
 if [ $? -ne 0 ]; then
-  echo "❌ Error descargando el script"
+  echo "❌ Error descargando ProjectGenerator.sh"
   exit 1
 fi
 
@@ -32,18 +32,16 @@ fi
 chmod +x "$HOME/bin/projectgenerator"
 
 # =========================
-# PATH (solo si no existe)
+# AGREGAR AL PATH
 # =========================
 if ! echo "$PATH" | grep -q "$HOME/bin"; then
   echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
 fi
 
 # =========================
-# RECARGAR (sin romper shell)
+# RECARGAR SHELL
 # =========================
-if [ -n "$BASH_VERSION" ]; then
-  source "$HOME/.bashrc"
-fi
+source "$HOME/.bashrc"
 
 echo ""
 echo "✅ Instalado correctamente"
