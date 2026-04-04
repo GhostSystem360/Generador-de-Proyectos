@@ -35,16 +35,26 @@ add_folders_to_csproj() {
         return 1
     fi
 
+    # Normalizar rutas (Windows → Unix)
+    normalize_path() {
+        echo "$1" | sed 's#\\#/#g' | sed 's#//*#/#g'
+    }
+
     # Crear temp file
     local tmp_file="${csproj_path}.tmp"
     local existing_folders
 
-    # Obtener carpetas existentes
-    existing_folders=$(grep -oP '(?<=<Folder Include=")[^"]+' "$csproj_path")
+    # Obtener carpetas existentes (normalizadas)
+    existing_folders=$(grep -oP '(?<=<Folder Include=")[^"]+' "$csproj_path" | sed 's#\\#/#g')
 
     # Construir nuevas entradas sin duplicados
     local folder_entries=""
     for folder in "${folders[@]}"; do
+        folder=$(normalize_path "$folder")
+
+        # Asegurar slash final (consistencia)
+        [[ "$folder" != */ ]] && folder="${folder}/"
+
         if ! echo "$existing_folders" | grep -qx "$folder"; then
             folder_entries="${folder_entries}    <Folder Include=\"${folder}\" />\n"
         fi
@@ -56,7 +66,7 @@ add_folders_to_csproj() {
         return 0
     fi
 
-    # Insertar ItemGroup antes del cierre de Project
+    # Insertar ItemGroup antes del cierre de Project (solo una vez)
     awk -v entries="$folder_entries" '
         BEGIN { inserted=0 }
         /<\/Project>/ && inserted==0 {
