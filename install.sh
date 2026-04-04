@@ -1,3 +1,3 @@
 #!/bin/bash
 
-echo "INSTALADOR OK"
+echo "INSTALADOROK"
