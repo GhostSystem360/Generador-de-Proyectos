@@ -35,4 +35,3 @@ source "$HOME/.bashrc"
 
 echo ""
 echo "✅ Instalado correctamente"
-echo "👉 Usa: projectgenerator NombreProyecto"
