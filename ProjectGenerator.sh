@@ -9,6 +9,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
 
 # =========================
 # BANNER
@@ -88,9 +89,9 @@ add_folders_to_csproj() {
 echo ""
 echo -e "${GREEN}🚀 Generador de Clean Architecture + Hexagonal + DDD (.NET 10)${NC}"
 echo ""
-echo "Ingrese el nombre del proyecto (ej: Auth, Sales, Orders):"
-read PROJECT_NAME
-PROJECT_NAME=$(echo "$PROJECT_NAME" | tr -d '\r\n' | xargs)
+read -r -p "$(echo -e "${CYAN}Nombre del proyecto ➜ ${MAGENTA}")" PROJECT_NAME
+echo -e "${NC}"
+PROJECT_NAME=$(printf "%s" "$PROJECT_NAME" | tr -d '\r\n' | xargs)
 
 if [ -z "$PROJECT_NAME" ]; then
   echo -e "${RED}❌ El nombre del proyecto es obligatorio${NC}"
