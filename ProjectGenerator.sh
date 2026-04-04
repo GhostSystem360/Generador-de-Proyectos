@@ -89,7 +89,7 @@ echo ""
 echo -e "${GREEN}🚀 Generador de Clean Architecture + Hexagonal + DDD (.NET 10)${NC}"
 echo ""
 echo "Ingrese el nombre del proyecto (ej: Auth, Sales, Orders):"
-read -r -p PROJECT_NAME
+read PROJECT_NAME
 PROJECT_NAME=$(echo "$PROJECT_NAME" | tr -d '\r\n' | xargs)
 
 if [ -z "$PROJECT_NAME" ]; then
