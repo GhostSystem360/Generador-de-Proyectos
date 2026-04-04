@@ -19,7 +19,7 @@ mkdir -p "$HOME/bin"
 # DESCARGAR SCRIPT
 # =========================
 curl -fLo "$HOME/bin/project-generator" \
-https://raw.githubusercontent.com/GhostSystem360/Generador-de-Proyectos/main/ProjectGenerator.sh
+https://raw.githubusercontent.com/GhostSystem360/Generador-de-Proyectos/main/install.sh
 
 if [ $? -ne 0 ]; then
   echo "❌ Error descargando el script"
