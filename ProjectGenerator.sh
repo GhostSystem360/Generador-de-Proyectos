@@ -135,6 +135,8 @@ dotnet new classlib -n $PROJECT_NAME.Application -f net10.0
 dotnet new classlib -n $PROJECT_NAME.Domain -f net10.0
 dotnet new classlib -n $PROJECT_NAME.Infrastructure -f net10.0
 
+echo -e "${GREEN}✅ Proyectos creado .NET 10${NC}"
+
 # =========================
 # AGREGAR A SOLUCIÓN
 # =========================
@@ -335,7 +337,7 @@ namespace ${PROJECT_NAME}.Application.Extensions;
 
 public static class ApplicationServicesExtensions
 {
-    public static IServiceCollection AddApplicationServicesExtensions(this IServiceCollection services)
+    public static IServiceCollection AddApplicationServicesExtensions(this IServiceCollection services, IConfiguration config)
     {
         return services;
     }
@@ -344,12 +346,49 @@ EOF
 
 # --- Infrastructure ServicesExtensions ---
 cat > $PROJECT_NAME.Infrastructure/Extensions/InfrastructureServicesExtensions.cs <<EOF
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
 namespace ${PROJECT_NAME}.Infrastructure.Extensions;
 
 public static class InfrastructureServicesExtensions
 {
     public static IServiceCollection AddInfrastructureServicesExtensions(this IServiceCollection services, IConfiguration config)
     {
+    services
+            .AddOptions<Jwt>()
+            .Bind(config.GetSection(Jwt.SectionName))
+            .ValidateDataAnnotations()
+            .Validate(jwt => !string.IsNullOrWhiteSpace(jwt.Key), "Jwt Key is required")
+            .Validate(jwt => !string.IsNullOrWhiteSpace(jwt.Issuer), "Jwt Issuer is required")
+            .Validate(jwt => !string.IsNullOrWhiteSpace(jwt.Audience), "Jwt Audience is required")
+            .ValidateOnStart();
+
+        var jwt = config.GetSection(Jwt.SectionName).Get<Jwt>() ?? throw new InvalidOperationException("Jwt configuration is missing");
+
+        services.AddScoped<IJwt, JwtService>();
+        services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.RequireHttpsMetadata = config.GetValue<bool>("Jwt:RequireHttpsMetadata", true);
+                options.SaveToken = false;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = jwt.ValidateIssuer,
+                    ValidateAudience = jwt.ValidateAudience,
+                    ValidateLifetime = jwt.ValidateLifetime,
+                    ValidateIssuerSigningKey = jwt.ValidateIssuerSigningKey,
+                    ValidIssuer = jwt.Issuer,
+                    ValidAudience = jwt.Audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
+                    ClockSkew = TimeSpan.FromMinutes(jwt.ClockSkewInMinutes)
+                };
+            });
+
+        services.AddAuthorization();
         return services;
     }
 }
@@ -357,13 +396,78 @@ EOF
 
 # --- Api ServicesExtensions ---
 cat > $PROJECT_NAME.Api/Extensions/ApiServicesExtensions.cs <<EOF
+using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.OpenApi;
+
 namespace Auth.Api.Extensions;
 
 public static class ApiServicesExtensions
 {
     public static IServiceCollection AddApiServicesExtensions(this IServiceCollection services, IConfiguration config)
     {
+        services.AddControllers(options => { var policy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build(); options.Filters.Add(new AuthorizeFilter(policy)); options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true; });
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen(options => options.SwaggerDoc("v1", new OpenApiInfo { Title = "${PROJECT_NAME} API", Version = "v1" }));
         return services;
+    }
+
+     public static IHostBuilder AddLoggingServicesExtensions(this IHostBuilder host)
+    {
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .CreateBootstrapLogger();
+
+        host.UseSerilog((context, services, config) =>
+        {
+            config
+                .ReadFrom.Configuration(context.Configuration)
+                .ReadFrom.Services(services)
+                .Enrich.FromLogContext()
+                .Enrich.WithProperty("Application", "PlantillaBase.API")
+                .Enrich.WithProperty("Environment", context.HostingEnvironment.EnvironmentName)
+                .Enrich.WithMachineName()
+                .WriteTo.Console(outputTemplate:
+                    "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+                .WriteTo.Conditional(
+                    _ => context.HostingEnvironment.IsProduction(),
+                    wt => wt.File(
+                        path: "logs/log-.json",
+                        rollingInterval: RollingInterval.Day,
+                        retainedFileCountLimit: 30,
+                        fileSizeLimitBytes: 100_000_000,
+                        formatter: new Serilog.Formatting.Json.JsonFormatter()));
+        });
+
+        return host;
+    }
+
+    public static WebApplication PipelineExtensions(this WebApplication app)
+    {
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseSwagger();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", "${PROJECT_NAME} API v1");
+                options.DefaultModelsExpandDepth(-1);
+                options.RoutePrefix = string.Empty;
+                options.DisplayRequestDuration();
+                options.EnableTryItOutByDefault();
+                options.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
+            });
+        }
+
+        app.UseHttpsRedirection();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.MapControllers();
+
+        return app;
     }
 }
 
@@ -465,6 +569,303 @@ dotnet add package Serilog.Enrichers.Environment
 
 echo -e "${GREEN}✅ Gateway packages installed${NC}"
 cd ..
+
+# =========================
+# LIMPIEZA DEPENDENCIAS DEFAULT
+# =========================
+
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+echo -e "${CYAN}  🧹 Eliminando dependencias innecesarias...${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+
+dotnet remove $PROJECT_NAME.Api package Microsoft.AspNetCore.OpenApi 2>/dev/null
+dotnet remove $PROJECT_NAME.Gateway package Microsoft.AspNetCore.OpenApi 2>/dev/null
+
+echo -e "${GREEN}✅ Dependencias limpiadas${NC}"
+
+# =========================
+# LIMPIEZA ARCHIVOS .HTTP
+# =========================
+
+echo "🧹 Eliminando archivos .http innecesarios..."
+
+find $PROJECT_NAME.Api -type f -name "*.http" -delete
+find $PROJECT_NAME.Gateway -type f -name "*.http" -delete
+
+echo "✅ Archivos .http eliminados"
+
+# =========================
+# VALIDAR PUERTO LIBRE
+# =========================
+is_port_free() {
+    ! lsof -i :$1 >/dev/null 2>&1
+}
+
+# =========================
+# GENERAR PUERTO LIBRE
+# =========================
+
+generate_free_port() {
+    local port
+    local attempts=0
+
+    while [ $attempts -lt 50 ]; do
+        port=$(shuf -i 7000-7999 -n 1)
+
+        if is_port_free "$port"; then
+            echo "$port"
+            return
+        fi
+
+        attempts=$((attempts + 1))
+    done
+
+    echo "❌ No se pudo encontrar puerto libre" >&2
+    exit 1
+}
+
+# =============================
+# GENERAR PUERTOS HTTPS LIBRES
+# =============================
+
+API_PORT=$(generate_free_port)
+
+# Garantizar que Gateway sea diferente y libre
+while true; do
+    GATEWAY_PORT=$(generate_free_port)
+    [ "$GATEWAY_PORT" -ne "$API_PORT" ] && break
+done
+
+echo "🌐 Api HTTPS Port: $API_PORT"
+echo "🌐 Gateway HTTPS Port: $GATEWAY_PORT"
+
+# =========================
+# REEMPLAZAR launchSettings.json - API
+# =========================
+
+echo "🧹 Reemplazando launchSettings.json en Api..."
+
+cat > $PROJECT_NAME.Api/Properties/launchSettings.json <<EOF
+{
+  "\$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:${API_PORT}",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+EOF
+
+echo "✅ launchSettings.json actualizado en Api"
+
+# =========================
+# REEMPLAZAR launchSettings.json - GATEWAY (opcional recomendado)
+# =========================
+
+echo "🧹 Reemplazando launchSettings.json en Gateway..."
+
+cat > $PROJECT_NAME.Gateway/Properties/launchSettings.json <<EOF
+{
+  "\$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:${GATEWAY_PORT}",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+EOF
+
+echo "✅ launchSettings.json actualizado en Gateway"
+
+# =========================
+# OBTENER HOSTNAME
+# =========================
+HOST_NAME=$(hostname 2>/dev/null)
+
+if [ -z "$HOST_NAME" ]; then
+    HOST_NAME="localhost"
+fi
+
+echo "🖥️ Hostname detectado: $HOST_NAME"
+
+# =========================
+# DETECTAR INSTANCIA SQL SERVER
+# =========================
+
+detect_sql_instance() {
+    # Buscar servicios SQL Server (Windows)
+    instances=$(sc query state= all | findstr /I "SQL Server (")
+
+    if [ -z "$instances" ]; then
+        echo ""
+        return
+    fi
+
+    # Extraer nombre de instancia
+    instance=$(echo "$instances" | sed -n 's/.*SQL Server (\(.*\)).*/\1/p' | head -n 1)
+
+    echo "$instance"
+}
+
+SQL_INSTANCE=$(detect_sql_instance)
+
+echo "🧠 SQL Instance detectada: $SQL_INSTANCE"
+
+# =========================
+# CONSTRUIR SERVER
+# =========================
+if [ "$SQL_INSTANCE" = "MSSQLSERVER" ] || [ -z "$SQL_INSTANCE" ]; then
+    # Instancia default → usar localhost
+    DB_SERVER="localhost"
+else
+    # Instancia nombrada
+    DB_SERVER="${HOST_NAME}\\${SQL_INSTANCE}"
+fi
+
+# Fallback seguro
+if [ -z "$DB_SERVER" ]; then
+    echo "⚠️ No se detectó SQL Server, usando fallback"
+    DB_SERVER="localhost\\SQLEXPRESS"
+fi
+
+echo "🗄️ SQL Server: $DB_SERVER"
+
+# =========================
+# GENERAR JWT KEY SEGURA
+# =========================
+JWT_KEY=$(openssl rand -base64 64 2>/dev/null)
+
+# fallback si no existe openssl
+if [ -z "$JWT_KEY" ]; then
+    JWT_KEY=$(head -c 64 /dev/urandom | base64)
+fi
+
+echo "🔐 JWT Key generada"
+
+# =========================
+# REEMPLAZAR appsettings.json - API
+# =========================
+
+echo "🧹 Reemplazando appsettings.json en Api..."
+
+cat > $PROJECT_NAME.Api/appsettings.json <<EOF
+{
+  "ConnectionStrings": {
+    "SqlServer": "Server=${DB_SERVER};Database=${PROJECT_NAME};User Id=sa;Password=0930929104;MultipleActiveResultSets=True;TrustServerCertificate=True;Encrypt=True;"
+  },
+  "Cors": {
+    "AllowedOrigins": [
+      "https://localhost:3000"
+    ]
+  },
+  "Jwt": {
+    "Key": "${JWT_KEY}",
+    "Issuer": "${PROJECT_NAME}",
+    "Audience": "${PROJECT_NAME}",
+    "ValidateIssuer": true,
+    "ValidateAudience": true,
+    "ValidateLifetime": true,
+    "ValidateIssuerSigningKey": true,
+    "ClockSkewInMinutes": 0,
+    "AccessTokenExpirationMinutes": 15,
+    "RefreshTokenExpirationDays": 7
+  },
+   "Serilog": {
+    "Using": [ "Serilog.Sinks.Console", "Serilog.Sinks.File" ],
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft": "Information",
+        "Microsoft.AspNetCore": "Warning"
+      }
+    },
+    "WriteTo": [
+      {
+        "Name": "Console"
+      },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "logs/log-.json",
+          "rollingInterval": "Day",
+          "formatter": "Serilog.Formatting.Json.JsonFormatter",
+          "retainedFileCountLimit": 30,
+          "fileSizeLimitBytes": 100000000
+        }
+      }
+    ],
+    "Enrich": [ "FromLogContext", "WithMachineName" ],
+    "Properties": {
+      "Application": "${PROJECT_NAME}"
+    }
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}
+EOF
+
+echo "✅ appsettings.json actualizado en Api"
+
+# =========================
+# REEMPLAZAR PROGRAM.CS - API
+# =========================
+
+echo "🧹 Reemplazando Program.cs en Api..."
+
+cat > $PROJECT_NAME.Api/Program.cs <<EOF
+using ${PROJECT_NAME}.Api.Extensions;
+using ${PROJECT_NAME}.Application.Extensions;
+using ${PROJECT_NAME}.Infrastructure.Extensions;
+using Serilog;
+
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.Host.AddLoggingServicesExtensions();
+
+    Log.Information("🚀 Starting application...");
+
+    builder.Services.AddApiServicesExtensions(builder.Configuration)
+    builder.Services.AddApplicationServicesExtensions(builder.Configuration)
+    builder.Services.AddInfrastructureServicesExtensions(builder.Configuration);
+
+    var app = builder.Build();
+
+    app.PipelineServicesExtensions();
+
+    await app.RunAsync();
+}
+catch (Exception ex) when (ex is not OperationCanceledException)
+{
+    Log.Fatal(ex, "💥 Application terminated unexpectedly");
+    throw; // ✅ correcto (no reinventar excepción)
+}
+finally
+{
+    await Log.CloseAndFlushAsync(); // ✅ async correcto
+}
+EOF
+
+echo "✅ Program.cs actualizado en Api"
 
 # =========================
 # CREAR .gitignore
