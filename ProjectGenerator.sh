@@ -136,7 +136,7 @@ dotnet new classlib -n $PROJECT_NAME.Domain -f net10.0
 dotnet new classlib -n $PROJECT_NAME.Infrastructure -f net10.0
 
 echo -e "${GREEN}✅ Proyectos creado .NET 10${NC}"
-
+echo ""
 # =========================
 # AGREGAR A SOLUCIÓN
 # =========================
@@ -152,6 +152,10 @@ dotnet sln add $PROJECT_NAME.Infrastructure/$PROJECT_NAME.Infrastructure.csproj
 # =========================
 # REFERENCIAS
 # =========================
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+echo -e "${CYAN}        🔗 Creando Referencias...              ${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 
 echo "🔗 Configurando referencias entre capas..."
 # Api → Application + Infrastructure
@@ -166,9 +170,16 @@ dotnet add $PROJECT_NAME.Infrastructure reference $PROJECT_NAME.Domain
 dotnet add $PROJECT_NAME.Application reference $PROJECT_NAME.Domain
 
 # =========================
+# Creando Estructura de Carpetas
+# =========================
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+echo -e "${CYAN}        📁 Creando Estructuras...              ${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+
+# =========================
 # DOMAIN
 # =========================
-
 echo "📁 Creando estructura - Domain..."
 
 mkdir -p $PROJECT_NAME.Domain/Auditing
@@ -361,7 +372,7 @@ namespace ${PROJECT_NAME}.Application.Extensions;
 
 public static class ApplicationServicesExtensions
 {
-    public static IServiceCollection AddApplicationServicesExtensions(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddApplicationServicesExtensions(this IServiceCollection services)
     {
         return services;
     }
@@ -370,10 +381,14 @@ EOF
 
 # --- Infrastructure ServicesExtensions ---
 cat > $PROJECT_NAME.Infrastructure/Extensions/InfrastructureServicesExtensions.cs <<EOF
+using System.Text;
+using ${PROJECT_NAME}.Application.Interfaces;
+using ${PROJECT_NAME}.Infrastructure.Configurations;
+using ${PROJECT_NAME}.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 
 namespace ${PROJECT_NAME}.Infrastructure.Extensions;
 
@@ -420,12 +435,14 @@ EOF
 
 # --- Api ServicesExtensions ---
 cat > $PROJECT_NAME.Api/Extensions/ApiServicesExtensions.cs <<EOF
-using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.OpenApi;
+using Serilog;
+using Serilog.Events;
 
-namespace Auth.Api.Extensions;
+namespace ${PROJECT_NAME}.Api.Extensions;
 
 public static class ApiServicesExtensions
 {
@@ -470,7 +487,7 @@ public static class ApiServicesExtensions
         return host;
     }
 
-    public static WebApplication PipelineExtensions(this WebApplication app)
+    public static WebApplication PipelineServicesExtensions(this WebApplication app)
     {
         if (app.Environment.IsDevelopment())
         {
@@ -525,17 +542,29 @@ public sealed class Jwt
 {
     public const string SectionName = "Jwt";
 
-    [Required]
-    [MinLength(32)]
+    [Required(ErrorMessage = "Jwt:Key es requerida")]
+    [MinLength(32, ErrorMessage = "Jwt:Key debe tener al menos 32 caracteres")]
     public string Key { get; init; } = string.Empty;
 
-    [Required]
+    [Required(ErrorMessage = "Jwt:Issuer es requerido")]
     public string Issuer { get; init; } = string.Empty;
 
-    [Required]
+    [Required(ErrorMessage = "Jwt:Audience es requerido")]
     public string Audience { get; init; } = string.Empty;
 
+    public bool ValidateIssuer { get; init; } = true;
+    public bool ValidateAudience { get; init; } = true;
+    public bool ValidateLifetime { get; init; } = true;
+    public bool ValidateIssuerSigningKey { get; init; } = true;
+
+    [Range(0, 60, ErrorMessage = "Jwt:ClockSkewInMinutes debe estar entre 0 y 60")]
+    public int ClockSkewInMinutes { get; init; } = 0;
+
+    [Range(1, 1440, ErrorMessage = "Jwt:AccessTokenExpirationMinutes debe estar entre 1 y 1440")]
     public int AccessTokenExpirationMinutes { get; init; } = 15;
+
+    [Range(1, 365, ErrorMessage = "Jwt:RefreshTokenExpirationDays debe estar entre 1 y 365")]
+    public int RefreshTokenExpirationDays { get; init; } = 7;
 }
 EOF
 
@@ -550,7 +579,7 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using ${PROJECT_NAME}.Application.Interfaces;
-using ${PROJECT_NAME}.Infrastructure.Identity.Configurations;
+using ${PROJECT_NAME}.Infrastructure.Configurations;
 
 namespace ${PROJECT_NAME}.Infrastructure.Services;
 
@@ -725,8 +754,10 @@ echo -e "${GREEN}✅ Dependencias limpiadas${NC}"
 # =========================
 # LIMPIEZA ARCHIVOS .HTTP
 # =========================
-
-echo "🧹 Eliminando archivos .http innecesarios..."
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+echo -e "${CYAN}  🧹 Eliminando archivos .http innecesarios...${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 
 find $PROJECT_NAME.Api -type f -name "*.http" -delete
 find $PROJECT_NAME.Gateway -type f -name "*.http" -delete
@@ -775,14 +806,19 @@ while true; do
     [ "$GATEWAY_PORT" -ne "$API_PORT" ] && break
 done
 
-echo "🌐 Api HTTPS Port: $API_PORT"
-echo "🌐 Gateway HTTPS Port: $GATEWAY_PORT"
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+echo -e "${CYAN}  🌐 Api HTTPS Port: $API_PORT                ${NC}"
+echo -e "${CYAN}  🌐 Gateway HTTPS Port: $GATEWAY_PORT        ${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 
 # =========================
 # REEMPLAZAR launchSettings.json - API
 # =========================
-
-echo "🧹 Reemplazando launchSettings.json en Api..."
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+echo -e "${CYAN}  🧹 Reemplazando launchSettings.json en Api...${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 
 cat > $PROJECT_NAME.Api/Properties/launchSettings.json <<EOF
 {
@@ -806,7 +842,10 @@ echo "✅ launchSettings.json actualizado en Api"
 # =========================
 # REEMPLAZAR launchSettings.json - GATEWAY (opcional recomendado)
 # =========================
-
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════════════════${NC}"
+echo -e "${CYAN}  🧹 Reemplazando launchSettings.json en Gateway...${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════════${NC}"
 echo "🧹 Reemplazando launchSettings.json en Gateway..."
 
 cat > $PROJECT_NAME.Gateway/Properties/launchSettings.json <<EOF
@@ -983,7 +1022,7 @@ try
     Log.Information("🚀 Starting application...");
 
     builder.Services.AddApiServicesExtensions(builder.Configuration);
-    builder.Services.AddApplicationServicesExtensions(builder.Configuration);
+    builder.Services.AddApplicationServicesExtensions();
     builder.Services.AddInfrastructureServicesExtensions(builder.Configuration);
 
     var app = builder.Build();
