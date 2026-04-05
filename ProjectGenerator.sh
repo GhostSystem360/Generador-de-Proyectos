@@ -171,9 +171,11 @@ dotnet add $PROJECT_NAME.Application reference $PROJECT_NAME.Domain
 
 echo "📁 Creando estructura - Domain..."
 
-mkdir -p $PROJECT_NAME.Domain/Common/Primitives
-mkdir -p $PROJECT_NAME.Domain/Common/Exceptions
-mkdir -p $PROJECT_NAME.Domain/Common/Interfaces
+mkdir -p $PROJECT_NAME.Domain/Auditing
+mkdir -p $PROJECT_NAME.Domain/Security
+mkdir -p $PROJECT_NAME.Domain/Primitives
+mkdir -p $PROJECT_NAME.Domain/Exceptions
+mkdir -p $PROJECT_NAME.Domain/Interfaces
 mkdir -p $PROJECT_NAME.Domain/Entities
 mkdir -p $PROJECT_NAME.Domain/ValueObjects
 mkdir -p $PROJECT_NAME.Domain/Aggregates
@@ -189,14 +191,15 @@ mkdir -p $PROJECT_NAME.Domain/Specifications
 
 echo "📁 Creando estructura - Application..."
 
-mkdir -p $PROJECT_NAME.Application/Features/Commands
-mkdir -p $PROJECT_NAME.Application/Features/Queries
-mkdir -p $PROJECT_NAME.Application/Common/Behaviors
-mkdir -p $PROJECT_NAME.Application/Common/Interfaces
-mkdir -p $PROJECT_NAME.Application/Common/Mappings
-mkdir -p $PROJECT_NAME.Application/Common/Exceptions
-mkdir -p $PROJECT_NAME.Application/EventHandlers
 mkdir -p $PROJECT_NAME.Application/DTOs
+mkdir -p $PROJECT_NAME.Application/Commands
+mkdir -p $PROJECT_NAME.Application/Queries
+mkdir -p $PROJECT_NAME.Application/Behaviors
+mkdir -p $PROJECT_NAME.Application/Interfaces
+mkdir -p $PROJECT_NAME.Application/Mappings
+mkdir -p $PROJECT_NAME.Application/Exceptions
+mkdir -p $PROJECT_NAME.Application/Models
+mkdir -p $PROJECT_NAME.Application/EventHandlers
 mkdir -p $PROJECT_NAME.Application/Validators
 mkdir -p $PROJECT_NAME.Application/Extensions
 
@@ -206,19 +209,23 @@ mkdir -p $PROJECT_NAME.Application/Extensions
 
 echo "📁 Creando estructura - Infrastructure..."
 
-mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Contexts
-mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Configurations
-mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Repositories
-mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Interceptors
-mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Migrations
-mkdir -p $PROJECT_NAME.Infrastructure/Persistence/Seeds
+mkdir -p $PROJECT_NAME.Infrastructure/Repositories
+mkdir -p $PROJECT_NAME.Infrastructure/Database/SqlServer/Contexts
+mkdir -p $PROJECT_NAME.Infrastructure/Database/SqlServer/Configurations
+mkdir -p $PROJECT_NAME.Infrastructure/Database/SqlServer/Migrations
+mkdir -p $PROJECT_NAME.Infrastructure/Database/SqlServer/Seeds
 mkdir -p $PROJECT_NAME.Infrastructure/Services
-mkdir -p $PROJECT_NAME.Infrastructure/External
-mkdir -p $PROJECT_NAME.Infrastructure/Identity
+mkdir -p $PROJECT_NAME.Infrastructure/Configurations
+mkdir -p $PROJECT_NAME.Infrastructure/Models
+mkdir -p $PROJECT_NAME.Infrastructure/Providers
 mkdir -p $PROJECT_NAME.Infrastructure/Caching
 mkdir -p $PROJECT_NAME.Infrastructure/Messaging
 mkdir -p $PROJECT_NAME.Infrastructure/Logging
 mkdir -p $PROJECT_NAME.Infrastructure/Extensions
+mkdir -p $PROJECT_NAME.Infrastructure/Observability
+mkdir -p $PROJECT_NAME.Infrastructure/Resilience
+mkdir -p $PROJECT_NAME.Infrastructure/BackgroundJobs
+mkdir -p $PROJECT_NAME.Infrastructure/Integrations
 
 # =========================
 # API
@@ -232,6 +239,9 @@ mkdir -p $PROJECT_NAME.Api/Filters
 mkdir -p $PROJECT_NAME.Api/Contracts
 mkdir -p $PROJECT_NAME.Api/Configurations
 mkdir -p $PROJECT_NAME.Api/Extensions
+mkdir -p $PROJECT_NAME.Api/Responses
+mkdir -p $PROJECT_NAME.Api/Errors
+mkdir -p $PROJECT_NAME.Api/HealthChecks
 
 # =========================
 # GATEWAY
@@ -248,8 +258,8 @@ mkdir -p $PROJECT_NAME.Gateway/HealthChecks
 mkdir -p $PROJECT_NAME.Gateway/Aggregators
 mkdir -p $PROJECT_NAME.Gateway/Services
 mkdir -p $PROJECT_NAME.Gateway/Models
-mkdir -p $PROJECT_NAME.Gateway/Constants
 mkdir -p $PROJECT_NAME.Gateway/Extensions
+mkdir -p $PROJECT_NAME.Gateway/Helpers
 
 # =========================
 # AGREGAR CARPETAS A CSPROJ
@@ -260,9 +270,11 @@ echo -e "${CYAN}  📝 Registrando carpetas en .csproj...${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 
 add_folders_to_csproj "$PROJECT_NAME.Domain/$PROJECT_NAME.Domain.csproj" \
-    "Common\\Primitives\\" \
-    "Common\\Exceptions\\" \
-    "Common\\Interfaces\\" \
+    "Auditing\\" \
+    "Security\\" \
+    "Primitives\\" \
+    "Exceptions\\" \
+    "Interfaces\\" \
     "Entities\\" \
     "ValueObjects\\" \
     "Aggregates\\" \
@@ -273,31 +285,38 @@ add_folders_to_csproj "$PROJECT_NAME.Domain/$PROJECT_NAME.Domain.csproj" \
     "Specifications\\"
 
 add_folders_to_csproj "$PROJECT_NAME.Application/$PROJECT_NAME.Application.csproj" \
-    "Features\\Commands\\" \
-    "Features\\Queries\\" \
-    "Common\\Behaviors\\" \
-    "Common\\Interfaces\\" \
-    "Common\\Mappings\\" \
-    "Common\\Exceptions\\" \
-    "EventHandlers\\" \
     "DTOs\\" \
+    "Commands\\" \
+    "Queries\\" \
+    "Behaviors\\" \
+    "Interfaces\\" \
+    "Mappings\\" \
+    "Exceptions\\" \
+    "Models\\" \
+    "EventHandlers\\" \
     "Validators\\" \
-	"Extensions\\"
+    "Extensions\\"
 
 add_folders_to_csproj "$PROJECT_NAME.Infrastructure/$PROJECT_NAME.Infrastructure.csproj" \
-    "Persistence\\Contexts\\" \
-    "Persistence\\Configurations\\" \
-    "Persistence\\Repositories\\" \
-    "Persistence\\Interceptors\\" \
-    "Persistence\\Migrations\\" \
-    "Persistence\\Seeds\\" \
+    "Repositories\\" \
+    "Database\\" \
+    "Database\\SqlServer\\" \
+    "Database\\SqlServer\\Contexts\\" \
+    "Database\\SqlServer\\Configurations\\" \
+    "Database\\SqlServer\\Migrations\\" \
+    "Database\\SqlServer\\Seeds\\" \
+    "Configurations\\" \
     "Services\\" \
-    "External\\" \
-    "Identity\\" \
+    "Models\\" \
+    "Providers\\" \
     "Caching\\" \
     "Messaging\\" \
     "Logging\\" \
-	"Extensions\\"
+    "Extensions\\" \
+    "Observability\\" \
+    "Resilience\\" \
+    "BackgroundJobs\\" \
+    "Integrations\\"
 
 add_folders_to_csproj "$PROJECT_NAME.Api/$PROJECT_NAME.Api.csproj" \
     "Controllers\\" \
@@ -305,7 +324,10 @@ add_folders_to_csproj "$PROJECT_NAME.Api/$PROJECT_NAME.Api.csproj" \
     "Filters\\" \
     "Contracts\\" \
     "Configurations\\" \
-	"Extensions\\"
+    "Extensions\\" \
+    "Responses\\" \
+    "Errors\\" \
+    "HealthChecks\\"
 
 add_folders_to_csproj "$PROJECT_NAME.Gateway/$PROJECT_NAME.Gateway.csproj" \
     "Middleware\\" \
@@ -317,8 +339,8 @@ add_folders_to_csproj "$PROJECT_NAME.Gateway/$PROJECT_NAME.Gateway.csproj" \
     "Aggregators\\" \
     "Services\\" \
     "Models\\" \
-    "Constants\\" \
-	"Extensions\\"
+    "Extensions\\" \
+    "Helpers\\"
 
 echo -e "${GREEN}✅ Carpetas registradas en archivos .csproj${NC}"
 
@@ -333,6 +355,8 @@ echo -e "${CYAN}═════════════════════�
 
 # --- Application ServicesExtensions ---
 cat > $PROJECT_NAME.Application/Extensions/ApplicationServicesExtensions.cs <<EOF
+using Microsoft.Extensions.DependencyInjection;
+
 namespace ${PROJECT_NAME}.Application.Extensions;
 
 public static class ApplicationServicesExtensions
@@ -475,6 +499,119 @@ EOF
 
 echo -e "${GREEN}✅ Clases ServicesExtensions creadas en cada capa${NC}"
 
+
+# =========================
+# IJWT
+# =========================
+cat > $PROJECT_NAME.Application/Interfaces/IJwt.cs <<EOF
+namespace ${PROJECT_NAME}.Application.Interfaces;
+
+public interface IJwt
+{
+    string GenerateAccessToken(Guid userId, string email, IEnumerable<string> roles);
+    string GenerateRefreshToken();
+}
+EOF
+
+# =========================
+# JWT CONFIG
+# =========================
+cat > $PROJECT_NAME.Infrastructure/Configurations/Jwt.cs <<EOF
+using System.ComponentModel.DataAnnotations;
+
+namespace ${PROJECT_NAME}.Infrastructure.Configurations;
+
+public sealed class Jwt
+{
+    public const string SectionName = "Jwt";
+
+    [Required]
+    [MinLength(32)]
+    public string Key { get; init; } = string.Empty;
+
+    [Required]
+    public string Issuer { get; init; } = string.Empty;
+
+    [Required]
+    public string Audience { get; init; } = string.Empty;
+
+    public int AccessTokenExpirationMinutes { get; init; } = 15;
+}
+EOF
+
+# =========================
+# JWT SERVICE
+# =========================
+cat > $PROJECT_NAME.Infrastructure/Services/JwtService.cs <<EOF
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using ${PROJECT_NAME}.Application.Interfaces;
+using ${PROJECT_NAME}.Infrastructure.Identity.Configurations;
+
+namespace ${PROJECT_NAME}.Infrastructure.Services;
+
+public sealed class JwtService : IJwt
+{
+    private readonly Jwt _config;
+
+    public JwtService(IOptionsSnapshot<Jwt> options)
+    {
+        _config = options.Value;
+    }
+
+    public string GenerateAccessToken(Guid userId, string email, IEnumerable<string> roles)
+    {
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(JwtRegisteredClaimNames.Email, email)
+        };
+
+        claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.Key));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: _config.Issuer,
+            audience: _config.Audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(_config.AccessTokenExpirationMinutes),
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public string GenerateRefreshToken()
+    {
+        var bytes = new byte[64];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(bytes);
+        return Convert.ToBase64String(bytes);
+    }
+}
+EOF
+
+# =========================
+# REFRESH TOKEN MODEL
+# =========================
+cat > $PROJECT_NAME.Infrastructure/Models/RefreshToken.cs <<EOF
+namespace ${PROJECT_NAME}.Infrastructure.Models;
+
+public sealed class RefreshToken
+{
+    public string Token { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
+    public DateTime Expiration { get; set; }
+}
+EOF
+
+
 # =========================
 # PAQUETES NUGET
 # =========================
@@ -515,6 +652,7 @@ dotnet add package Microsoft.Extensions.Configuration
 dotnet add package Microsoft.Extensions.DependencyInjection
 
 # JWT
+dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer
 dotnet add package Microsoft.IdentityModel.Tokens
 dotnet add package System.IdentityModel.Tokens.Jwt
 
@@ -844,8 +982,8 @@ try
 
     Log.Information("🚀 Starting application...");
 
-    builder.Services.AddApiServicesExtensions(builder.Configuration)
-    builder.Services.AddApplicationServicesExtensions(builder.Configuration)
+    builder.Services.AddApiServicesExtensions(builder.Configuration);
+    builder.Services.AddApplicationServicesExtensions(builder.Configuration);
     builder.Services.AddInfrastructureServicesExtensions(builder.Configuration);
 
     var app = builder.Build();
