@@ -326,13 +326,11 @@ echo -e "${GREEN}✅ Carpetas registradas en archivos .csproj${NC}"
 
 echo ""
 echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
-echo -e "${CYAN}  📝 Generando clases ServicesExtensions...${NC}"
+echo -e "${CYAN}  📝 Generando clases ServicesExtensions.......${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 
 # --- Application ServicesExtensions ---
 cat > $PROJECT_NAME.Application/Extensions/ApplicationServicesExtensions.cs <<EOF
-using Microsoft.Extensions.DependencyInjection;
-
 namespace ${PROJECT_NAME}.Application.Extensions;
 
 public static class ApplicationServicesExtensions
@@ -346,14 +344,11 @@ EOF
 
 # --- Infrastructure ServicesExtensions ---
 cat > $PROJECT_NAME.Infrastructure/Extensions/InfrastructureServicesExtensions.cs <<EOF
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
-
 namespace ${PROJECT_NAME}.Infrastructure.Extensions;
 
 public static class InfrastructureServicesExtensions
 {
-    public static IServiceCollection AddInfrastructureServicesExtensions(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructureServicesExtensions(this IServiceCollection services, IConfiguration config)
     {
         return services;
     }
@@ -362,18 +357,16 @@ EOF
 
 # --- Api ServicesExtensions ---
 cat > $PROJECT_NAME.Api/Extensions/ApiServicesExtensions.cs <<EOF
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
-
-namespace ${PROJECT_NAME}.Api.Extensions;
+namespace Auth.Api.Extensions;
 
 public static class ApiServicesExtensions
 {
-    public static IServiceCollection AddApiServicesExtensions(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddApiServicesExtensions(this IServiceCollection services, IConfiguration config)
     {
         return services;
     }
 }
+
 EOF
 
 echo -e "${GREEN}✅ Clases ServicesExtensions creadas en cada capa${NC}"
