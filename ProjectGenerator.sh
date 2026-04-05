@@ -738,20 +738,6 @@ echo -e "${GREEN}✅ Gateway packages installed${NC}"
 cd ..
 
 # =========================
-# LIMPIEZA DEPENDENCIAS DEFAULT
-# =========================
-
-echo ""
-echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
-echo -e "${CYAN}  🧹 Eliminando dependencias innecesarias...${NC}"
-echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
-
-dotnet remove $PROJECT_NAME.Api package Microsoft.AspNetCore.OpenApi 2>/dev/null
-dotnet remove $PROJECT_NAME.Gateway package Microsoft.AspNetCore.OpenApi 2>/dev/null
-
-echo -e "${GREEN}✅ Dependencias limpiadas${NC}"
-
-# =========================
 # LIMPIEZA ARCHIVOS .HTTP
 # =========================
 echo ""
@@ -883,7 +869,6 @@ echo "🖥️ Hostname detectado: $HOST_NAME"
 # =========================
 
 detect_sql_instance() {
-    # Buscar servicios SQL Server (Windows)
     instances=$(sc query state= all | findstr /I "SQL Server (")
 
     if [ -z "$instances" ]; then
@@ -891,9 +876,7 @@ detect_sql_instance() {
         return
     fi
 
-    # Extraer nombre de instancia
     instance=$(echo "$instances" | sed -n 's/.*SQL Server (\(.*\)).*/\1/p' | head -n 1)
-
     echo "$instance"
 }
 
@@ -905,20 +888,24 @@ echo "🧠 SQL Instance detectada: $SQL_INSTANCE"
 # CONSTRUIR SERVER
 # =========================
 if [ "$SQL_INSTANCE" = "MSSQLSERVER" ] || [ -z "$SQL_INSTANCE" ]; then
-    # Instancia default → usar localhost
     DB_SERVER="localhost"
 else
-    # Instancia nombrada
     DB_SERVER="${HOST_NAME}\\${SQL_INSTANCE}"
 fi
 
 # Fallback seguro
 if [ -z "$DB_SERVER" ]; then
-    echo "⚠️ No se detectó SQL Server, usando fallback"
     DB_SERVER="localhost\\SQLEXPRESS"
 fi
 
-echo "🗄️ SQL Server: $DB_SERVER"
+echo "🗄️ SQL Server (raw): $DB_SERVER"
+
+# =========================
+# 🔥 FIX CRÍTICO (JSON ESCAPE)
+# =========================
+DB_SERVER=$(printf '%s' "$DB_SERVER" | sed 's/\\/\\\\/g')
+
+echo "🗄️ SQL Server (escaped): $DB_SERVER"
 
 # =========================
 # GENERAR JWT KEY SEGURA
@@ -1043,6 +1030,30 @@ finally
 EOF
 
 echo "✅ Program.cs actualizado en Api"
+
+# =========================
+# LIMPIEZA DEPENDENCIAS DEFAULT
+# =========================
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+echo -e "${CYAN}  🧹 Eliminando dependencias innecesarias...${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+
+if dotnet list $PROJECT_NAME.Api package | grep -q "Microsoft.AspNetCore.OpenApi"; then
+  dotnet remove $PROJECT_NAME.Api package Microsoft.AspNetCore.OpenApi
+  echo "✔ OpenApi eliminado de Api"
+else
+  echo "ℹ OpenApi no existe en Api"
+fi
+
+if dotnet list $PROJECT_NAME.Gateway package | grep -q "Microsoft.AspNetCore.OpenApi"; then
+  dotnet remove $PROJECT_NAME.Gateway package Microsoft.AspNetCore.OpenApi
+  echo "✔ OpenApi eliminado de Gateway"
+else
+  echo "ℹ OpenApi no existe en Gateway"
+fi
+
+echo "✅ Limpieza completada"
 
 # =========================
 # CREAR .gitignore
