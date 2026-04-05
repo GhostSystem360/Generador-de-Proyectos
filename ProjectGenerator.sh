@@ -1063,7 +1063,7 @@ remove_package_if_exists() {
 
 # Ejecutar limpieza
 remove_package_if_exists "${PROJECT_NAME}.Api" "Microsoft.AspNetCore.OpenApi"
-remove_package_if_exists "${PROJECT_NAME}.Gateway" "Microsoft.AspNetCore.OpenApi"
+#remove_package_if_exists "${PROJECT_NAME}.Gateway" "Microsoft.AspNetCore.OpenApi"
 
 # =========================
 # CREAR .gitignore
