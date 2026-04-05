@@ -910,11 +910,11 @@ echo "🗄️ SQL Server (escaped): $DB_SERVER"
 # =========================
 # GENERAR JWT KEY SEGURA
 # =========================
-JWT_KEY=$(openssl rand -base64 64 2>/dev/null)
+JWT_KEY=$(openssl rand -base64 64 2>/dev/null | tr -d '\n')
 
 # fallback si no existe openssl
 if [ -z "$JWT_KEY" ]; then
-    JWT_KEY=$(head -c 64 /dev/urandom | base64)
+    JWT_KEY=$(head -c 64 /dev/urandom | base64 | tr -d '\n')
 fi
 
 echo "🔐 JWT Key generada"
