@@ -913,7 +913,7 @@ echo ""
 # =========================
 # GENERAR JWT KEY SEGURA
 # =========================
-JWT_KEY=$(openssl rand -base64 64 -A)
+JWT_KEY=$(openssl rand 64 | openssl base64 | tr -d '\r\n')
 echo "\"Key\": \"$JWT_KEY\""
 
 echo "🔐 JWT Key generada"
