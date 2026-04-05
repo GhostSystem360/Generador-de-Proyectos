@@ -856,27 +856,62 @@ echo "✅ launchSettings.json actualizado en Gateway"
 # =========================
 # OBTENER HOSTNAME
 # =========================
+HOST_NAME=$(hostname 2>/dev/null)
 
-HOST_NAME=$(hostname)
+if [ -z "$HOST_NAME" ]; then
+    HOST_NAME="localhost"
+fi
 
 echo "🖥️ Hostname detectado: $HOST_NAME"
 
 # =========================
-# CONSTRUIR SERVER
+# DETECTAR INSTANCIA SQL SERVER
 # =========================
 
-DB_SERVER="${HOST_NAME}\\SQLSERVER"
+detect_sql_instance() {
+    instances=$(sc query state= all | findstr /I "SQL Server (")
+
+    if [ -z "$instances" ]; then
+        echo ""
+        return
+    fi
+
+    instance=$(echo "$instances" | sed -n 's/.*SQL Server (\(.*\)).*/\1/p' | head -n 1)
+    echo "$instance"
+}
+
+SQL_INSTANCE=$(detect_sql_instance)
+
+echo "🧠 SQL Instance detectada: $SQL_INSTANCE"
+
+# =========================
+# CONSTRUIR SERVER
+# =========================
+if [ "$SQL_INSTANCE" = "MSSQLSERVER" ] || [ -z "$SQL_INSTANCE" ]; then
+    DB_SERVER="localhost"
+else
+    DB_SERVER="${HOST_NAME}\\${SQL_INSTANCE}"
+fi
+
+# Fallback seguro
+if [ -z "$DB_SERVER" ]; then
+    DB_SERVER="localhost\\SQLEXPRESS"
+fi
+
+echo "🗄️ SQL Server (raw): $DB_SERVER"
+
+# =========================
+# 🔥 FIX CRÍTICO (JSON ESCAPE)
+# =========================
 DB_SERVER=$(printf '%s' "$DB_SERVER" | sed 's/\\/\\\\/g')
 
-echo "🗄️ SQL Server: $DB_SERVER"
-echo ""
+echo "🗄️ SQL Server (escaped): $DB_SERVER"
+
 # =========================
 # GENERAR JWT KEY SEGURA
 # =========================
 JWT_KEY=$(openssl rand -base64 64 2>/dev/null | tr -d '\n')
 
-echo "JWT length: ${#JWT_KEY}"
-echo ""
 echo "🔐 JWT Key generada"
 echo ""
 
