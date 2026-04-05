@@ -1028,26 +1028,6 @@ EOF
 echo "✅ Program.cs actualizado en Api"
 
 # =========================
-# LIMPIEZA DEPENDENCIAS
-# =========================
-
-echo ""
-echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
-echo -e "${CYAN}   🧹 Eliminando dependencias innecesarias... ${NC}"
-echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
-
-cd $PROJECT_NAME.Api
-dotnet remove package Microsoft.AspNetCore.OpenApi
-echo "✅ Limpieza completada Api"
-cd ..
-
-cd $PROJECT_NAME.Gateway
-dotnet remove package Microsoft.AspNetCore.OpenApi
-
-echo "✅ Limpieza completada Gateway"
-cd ..
-
-# =========================
 # CREAR .gitignore
 # =========================
 
