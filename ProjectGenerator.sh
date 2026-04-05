@@ -856,62 +856,27 @@ echo "✅ launchSettings.json actualizado en Gateway"
 # =========================
 # OBTENER HOSTNAME
 # =========================
-HOST_NAME=$(hostname 2>/dev/null)
 
-if [ -z "$HOST_NAME" ]; then
-    HOST_NAME="localhost"
-fi
+HOST_NAME=$(hostname)
 
 echo "🖥️ Hostname detectado: $HOST_NAME"
 
 # =========================
-# DETECTAR INSTANCIA SQL SERVER
-# =========================
-
-detect_sql_instance() {
-    instances=$(sc query state= all | findstr /I "SQL Server (")
-
-    if [ -z "$instances" ]; then
-        echo ""
-        return
-    fi
-
-    instance=$(echo "$instances" | sed -n 's/.*SQL Server (\(.*\)).*/\1/p' | head -n 1)
-    echo "$instance"
-}
-
-SQL_INSTANCE=$(detect_sql_instance)
-
-echo "🧠 SQL Instance detectada: $SQL_INSTANCE"
-
-# =========================
 # CONSTRUIR SERVER
 # =========================
-if [ "$SQL_INSTANCE" = "MSSQLSERVER" ] || [ -z "$SQL_INSTANCE" ]; then
-    DB_SERVER="localhost"
-else
-    DB_SERVER="${HOST_NAME}\\${SQL_INSTANCE}"
-fi
 
-# Fallback seguro
-if [ -z "$DB_SERVER" ]; then
-    DB_SERVER="localhost\\SQLEXPRESS"
-fi
-
-echo "🗄️ SQL Server (raw): $DB_SERVER"
-
-# =========================
-# 🔥 FIX CRÍTICO (JSON ESCAPE)
-# =========================
+DB_SERVER="${HOST_NAME}\\SQLSERVER"
 DB_SERVER=$(printf '%s' "$DB_SERVER" | sed 's/\\/\\\\/g')
 
-echo "🗄️ SQL Server (escaped): $DB_SERVER"
-
+echo "🗄️ SQL Server: $DB_SERVER"
+echo ""
 # =========================
 # GENERAR JWT KEY SEGURA
 # =========================
 JWT_KEY=$(openssl rand -base64 64 2>/dev/null | tr -d '\n')
 
+echo "JWT length: ${#JWT_KEY}"
+echo ""
 echo "🔐 JWT Key generada"
 echo ""
 
@@ -1036,10 +1001,16 @@ echo -e "${CYAN}═════════════════════�
 echo -e "${CYAN}   🧹 Eliminando dependencias innecesarias... ${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 
-dotnet remove "$PROJECT_NAME.Api/$PROJECT_NAME.Api.csproj" package Microsoft.AspNetCore.OpenApi
-dotnet remove "$PROJECT_NAME.Gateway/$PROJECT_NAME.Gateway.csproj" package Microsoft.AspNetCore.OpenApi
+cd $PROJECT_NAME.Api
+dotnet remove package Microsoft.AspNetCore.OpenApi
+echo "✅ Limpieza completada Api"
+cd ..
 
-echo "✅ Limpieza completada"
+cd $PROJECT_NAME.Gateway
+dotnet remove package Microsoft.AspNetCore.OpenApi
+
+echo "✅ Limpieza completada Gateway"
+cd ..
 
 # =========================
 # CREAR .gitignore
