@@ -912,12 +912,8 @@ echo "🗄️ SQL Server (escaped): $DB_SERVER"
 # =========================
 JWT_KEY=$(openssl rand -base64 64 2>/dev/null | tr -d '\n')
 
-# fallback si no existe openssl
-if [ -z "$JWT_KEY" ]; then
-    JWT_KEY=$(head -c 64 /dev/urandom | base64 | tr -d '\n')
-fi
-
 echo "🔐 JWT Key generada"
+echo ""
 
 # =========================
 # REEMPLAZAR appsettings.json - API
@@ -1032,26 +1028,16 @@ EOF
 echo "✅ Program.cs actualizado en Api"
 
 # =========================
-# LIMPIEZA DEPENDENCIAS DEFAULT
+# LIMPIEZA DEPENDENCIAS
 # =========================
+
 echo ""
 echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
-echo -e "${CYAN}  🧹 Eliminando dependencias innecesarias...${NC}"
+echo -e "${CYAN}   🧹 Eliminando dependencias innecesarias... ${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 
-if dotnet list $PROJECT_NAME.Api package | grep -q "Microsoft.AspNetCore.OpenApi"; then
-  dotnet remove $PROJECT_NAME.Api package Microsoft.AspNetCore.OpenApi
-  echo "✔ OpenApi eliminado de Api"
-else
-  echo "ℹ OpenApi no existe en Api"
-fi
-
-if dotnet list $PROJECT_NAME.Gateway package | grep -q "Microsoft.AspNetCore.OpenApi"; then
-  dotnet remove $PROJECT_NAME.Gateway package Microsoft.AspNetCore.OpenApi
-  echo "✔ OpenApi eliminado de Gateway"
-else
-  echo "ℹ OpenApi no existe en Gateway"
-fi
+dotnet remove "$PROJECT_NAME.Api/$PROJECT_NAME.Api.csproj" package Microsoft.AspNetCore.OpenApi
+dotnet remove "$PROJECT_NAME.Gateway/$PROJECT_NAME.Gateway.csproj" package Microsoft.AspNetCore.OpenApi
 
 echo "✅ Limpieza completada"
 
