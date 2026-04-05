@@ -869,20 +869,20 @@ echo "🖥️ Hostname detectado: $HOST_NAME"
 # =========================
 
 detect_sql_instance() {
-    instances=$(sc query state= all | findstr /I "SQL Server (")
+    reg_output=$(reg query "HKLM\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\SQL" 2>/dev/null)
 
-    if [ -z "$instances" ]; then
+   if [ -z "$reg_output" ]; then
         echo ""
         return
     fi
 
-    instance=$(echo "$instances" | sed -n 's/.*SQL Server (\(.*\)).*/\1/p' | head -n 1)
+    instance=$(echo "$reg_output" | awk '/REG_SZ/ {print $1}' | head -n 1)
     echo "$instance"
 }
 
 SQL_INSTANCE=$(detect_sql_instance)
-
 echo "🧠 SQL Instance detectada: $SQL_INSTANCE"
+echo ""
 
 # =========================
 # CONSTRUIR SERVER
@@ -899,18 +899,22 @@ if [ -z "$DB_SERVER" ]; then
 fi
 
 echo "🗄️ SQL Server (raw): $DB_SERVER"
+echo ""
 
 # =========================
 # 🔥 FIX CRÍTICO (JSON ESCAPE)
 # =========================
+
 DB_SERVER=$(printf '%s' "$DB_SERVER" | sed 's/\\/\\\\/g')
 
 echo "🗄️ SQL Server (escaped): $DB_SERVER"
+echo ""
 
 # =========================
 # GENERAR JWT KEY SEGURA
 # =========================
-JWT_KEY=$(openssl rand -base64 64 2>/dev/null | tr -d '\n')
+JWT_KEY=$(openssl rand -base64 64 -A)
+echo "\"Key\": \"$JWT_KEY\""
 
 echo "🔐 JWT Key generada"
 echo ""
@@ -1026,6 +1030,40 @@ finally
 EOF
 
 echo "✅ Program.cs actualizado en Api"
+
+# =========================
+# LIMPIEZA DEPENDENCIAS (SAFE)
+# =========================
+
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+echo -e "${CYAN}   🧹 Eliminando dependencias innecesarias... ${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+
+remove_package_if_exists() {
+    local project_path=$1
+    local package_name=$2
+
+    if [ ! -d "$project_path" ]; then
+        echo "⚠️ Carpeta no existe: $project_path"
+        return
+    fi
+
+    cd "$project_path" || return
+
+    if dotnet list package | grep -q "$package_name"; then
+        dotnet remove package "$package_name"
+        echo "✅ Eliminado $package_name en $project_path"
+    else
+        echo "ℹ️ $package_name no está instalado en $project_path"
+    fi
+
+    cd - > /dev/null || return
+}
+
+# Ejecutar limpieza
+remove_package_if_exists "${PROJECT_NAME}.Api" "Microsoft.AspNetCore.OpenApi"
+remove_package_if_exists "${PROJECT_NAME}.Gateway" "Microsoft.AspNetCore.OpenApi"
 
 # =========================
 # CREAR .gitignore
