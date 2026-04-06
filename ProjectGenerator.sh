@@ -441,13 +441,13 @@ EOF
 # --- Api ServicesExtensions ---
 # ==============================
 cat > $PROJECT_NAME.Api/Extensions/ApiServicesExtensions.cs <<EOF
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi;
-using Serilog;
 using Serilog.Events;
+using Serilog;
 
 namespace ${PROJECT_NAME}.Api.Extensions;
 
@@ -468,25 +468,23 @@ public static class ApiServicesExtensions
 
         Log.Logger = new LoggerConfiguration()
             .ReadFrom.Configuration(builder.Configuration)
-            .ReadFrom.Services(builder.Services)
             .Enrich.FromLogContext()
             .Enrich.WithMachineName()
             .Enrich.WithEnvironmentName()
+            .Enrich.WithThreadId()
             .Enrich.WithProperty("Application", builder.Environment.ApplicationName)
             .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
-            .Enrich.WithThreadId()
             .MinimumLevel.Information()
-            .MinimumLevel.Override("System", LogEventLevel.Warning)
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-            .WriteTo.File(
+            .MinimumLevel.Override("System", LogEventLevel.Warning)
+            .WriteTo.Async(a => a.File(
                 Path.Combine(basePath, "log-.txt"),
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 30,
+                retainedFileCountLimit: 31,
                 rollOnFileSizeLimit: true,
                 shared: true,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj} {NewLine}{Exception}")
-            .WriteTo.Console()
+             .WriteTo.Console();
             .CreateLogger();
         builder.Host.UseSerilog();
         return builder;
@@ -577,14 +575,14 @@ EOF
 # JWT SERVICE
 # =========================
 cat > $PROJECT_NAME.Infrastructure/Services/JwtService.cs <<EOF
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using ${PROJECT_NAME}.Application.Interfaces;
 using ${PROJECT_NAME}.Infrastructure.Configurations;
+using ${PROJECT_NAME}.Application.Interfaces;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
+using System.Security.Claims;
+using System.Text;
 
 namespace ${PROJECT_NAME}.Infrastructure.Services;
 
@@ -1011,8 +1009,7 @@ try
 
     builder.AddLoggingServicesExtensions();
 
-    Log.Information("🚀 Starting application...");
-    Log.Information("\U0001F680 Iniciando ${PROJECT_NAME} API...");
+    Log.Information("\U0001F680 Starting application Ctk API...");
 
     builder.Services.AddApiServicesExtensions(builder.Configuration);
     builder.Services.AddApplicationServicesExtensions();
