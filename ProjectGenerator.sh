@@ -476,8 +476,8 @@ public static class ApiServicesExtensions
                 retainedFileCountLimit: 31,
                 rollOnFileSizeLimit: true,
                 shared: true,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj} {NewLine}{Exception}")
-             .WriteTo.Console();
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj} {NewLine}{Exception}"))
+             .WriteTo.Console()
             .CreateLogger();
         builder.Host.UseSerilog();
         return builder;
