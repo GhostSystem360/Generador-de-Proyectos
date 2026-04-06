@@ -439,8 +439,6 @@ EOF
 cat > $PROJECT_NAME.Api/Extensions/ApiServicesExtensions.cs <<EOF
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Configuration;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi;
 using Serilog.Events;
 using Serilog;
@@ -463,7 +461,6 @@ public static class ApiServicesExtensions
         Directory.CreateDirectory(basePath);
 
         Log.Logger = new LoggerConfiguration()
-            .ReadFrom.Configuration(builder.Configuration)
             .Enrich.FromLogContext()
             .Enrich.WithMachineName()
             .Enrich.WithEnvironmentName()
@@ -769,6 +766,7 @@ dotnet add package Serilog.Sinks.Console
 dotnet add package Serilog.Sinks.File
 dotnet add package Serilog.Enrichers.Environment
 dotnet add package Serilog.Enrichers.Thread
+dotnet add package Serilog.Sinks.Async
 
 echo -e "${GREEN}✅ Api packages installed${NC}"
 cd ..
@@ -787,10 +785,13 @@ dotnet add package Yarp.ReverseProxy
 dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer
 
 # Serilog
+dotnet add package Serilog
 dotnet add package Serilog.AspNetCore
 dotnet add package Serilog.Sinks.Console
 dotnet add package Serilog.Sinks.File
 dotnet add package Serilog.Enrichers.Environment
+dotnet add package Serilog.Enrichers.Thread
+dotnet add package Serilog.Sinks.Async
 
 echo -e "${GREEN}✅ Gateway packages installed${NC}"
 cd ..
