@@ -484,7 +484,7 @@ public static class ApiServicesExtensions
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 30,
                 rollOnFileSizeLimit: true,
-                shared: true
+                shared: true,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj} {NewLine}{Exception}")
             .WriteTo.Console()
             .CreateLogger();
