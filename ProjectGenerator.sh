@@ -385,14 +385,15 @@ EOF
 # --- Infrastructure ServicesExtensions ---
 # =========================================
 cat > $PROJECT_NAME.Infrastructure/Extensions/InfrastructureServicesExtensions.cs <<EOF
-using System.Text;
-using ${PROJECT_NAME}.Application.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 using ${PROJECT_NAME}.Infrastructure.Configurations;
 using ${PROJECT_NAME}.Infrastructure.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using ${PROJECT_NAME}.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Options;
+using System.Text;
 
 namespace ${PROJECT_NAME}.Infrastructure.Extensions;
 
@@ -400,37 +401,32 @@ public static class InfrastructureServicesExtensions
 {
     public static IServiceCollection AddInfrastructureServicesExtensions(this IServiceCollection services, IConfiguration config)
     {
-    services
-            .AddOptions<Jwt>()
-            .Bind(config.GetSection(Jwt.SectionName))
-            .ValidateDataAnnotations()
-            .Validate(jwt => !string.IsNullOrWhiteSpace(jwt.Key), "Jwt Key is required")
-            .Validate(jwt => !string.IsNullOrWhiteSpace(jwt.Issuer), "Jwt Issuer is required")
-            .Validate(jwt => !string.IsNullOrWhiteSpace(jwt.Audience), "Jwt Audience is required")
-            .ValidateOnStart();
-
-        var jwt = config.GetSection(Jwt.SectionName).Get<Jwt>() ?? throw new InvalidOperationException("Jwt configuration is missing");
-
+        services.AddOptions<Jwt>()
+                .Bind(config.GetSection(Jwt.SectionName))
+                .Validate(jwt => !string.IsNullOrWhiteSpace(jwt.Key), "Jwt:Key is required")
+                .Validate(jwt => jwt.Key.Length >= 32, "Jwt:Key must be at least 256 bits")
+                .Validate(jwt => !string.IsNullOrWhiteSpace(jwt.Issuer), "Jwt:Issuer is required")
+                .Validate(jwt => !string.IsNullOrWhiteSpace(jwt.Audience), "Jwt:Audience is required")
+                .ValidateOnStart();
         services.AddScoped<IJwt, JwtService>();
-        services
-            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme).Configure<IOptions<Jwt>>((options, jwtOptions) =>
+        {
+            var jwt = jwtOptions.Value;
+            options.RequireHttpsMetadata = true; //Producción debe ir True
+            options.SaveToken = false;
+            options.TokenValidationParameters = new TokenValidationParameters
             {
-                options.RequireHttpsMetadata = config.GetValue<bool>("Jwt:RequireHttpsMetadata", true);
-                options.SaveToken = false;
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = jwt.ValidateIssuer,
-                    ValidateAudience = jwt.ValidateAudience,
-                    ValidateLifetime = jwt.ValidateLifetime,
-                    ValidateIssuerSigningKey = jwt.ValidateIssuerSigningKey,
-                    ValidIssuer = jwt.Issuer,
-                    ValidAudience = jwt.Audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
-                    ClockSkew = TimeSpan.FromMinutes(jwt.ClockSkewInMinutes)
-                };
-            });
-
+                ValidateIssuer = jwt.ValidateIssuer,
+                ValidateAudience = jwt.ValidateAudience,
+                ValidateLifetime = jwt.ValidateLifetime,
+                ValidateIssuerSigningKey = jwt.ValidateIssuerSigningKey,
+                ValidIssuer = jwt.Issuer,
+                ValidAudience = jwt.Audience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
+                ClockSkew = TimeSpan.FromMinutes(jwt.ClockSkewInMinutes)
+            };
+        });
         services.AddAuthorization();
         return services;
     }
@@ -1009,7 +1005,7 @@ try
 
     builder.AddLoggingServicesExtensions();
 
-    Log.Information("\U0001F680 Starting application Ctk API...");
+    Log.Information("\U0001F680 Starting application ${PROJECT_NAME} API...");
 
     builder.Services.AddApiServicesExtensions(builder.Configuration);
     builder.Services.AddApplicationServicesExtensions();
