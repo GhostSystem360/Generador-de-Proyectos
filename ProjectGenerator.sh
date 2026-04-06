@@ -459,7 +459,7 @@ public static class ApiServicesExtensions
 
     public static WebApplicationBuilder AddLoggingServicesExtensions(this WebApplicationBuilder builder)
     {
-        var basePath = Path.Combine(Directory.GetCurrentDirectory(), "logs");
+        var basePath = Path.Combine(Directory.GetCurrentDirectory(), "Logs");
         Directory.CreateDirectory(basePath);
 
         Log.Logger = new LoggerConfiguration()
@@ -639,6 +639,65 @@ public sealed class RefreshToken
 }
 EOF
 
+# =========================
+# HTTP STATUS ERRORS
+# =========================
+cat > $PROJECT_NAME.Api/Errors/HttpStatusHelper.cs <<EOF
+using System.Net;
+
+namespace ${PROJECT_NAME}.Api.Helpers;
+
+public static class HttpStatusHelper
+{
+    public static string ObtenerDescripcion(int statusCode)
+    {
+        return statusCode switch
+        {
+            100 => "Continue",
+            101 => "Switching Protocols",
+            102 => "Processing",
+            103 => "Early Hints",
+
+            200 => "OK",
+            201 => "Creado",
+            202 => "Aceptado",
+            203 => "Información no autoritativa",
+            204 => "Sin contenido",
+            205 => "Restablecer contenido",
+            206 => "Contenido parcial",
+            207 => "Multi-estado",
+            208 => "Ya reportado",
+            226 => "IM usado",
+
+            300 => "Múltiples opciones",
+            301 => "Movido permanentemente",
+            302 => "Encontrado",
+            303 => "Ver otro",
+            304 => "No modificado",
+            307 => "Redirección temporal",
+            308 => "Redirección permanente",
+
+            400 => "Petición mala",
+            401 => "No autorizado",
+            403 => "Prohibido",
+            404 => "No encontrado",
+            405 => "Método no permitido",
+            408 => "Tiempo de espera agotado",
+            409 => "Conflicto",
+            422 => "Contenido no procesable",
+            429 => "Demasiadas solicitudes",
+
+            500 => "Error interno del servidor",
+            501 => "No implementado",
+            502 => "Puerta de enlace no válida",
+            503 => "Servicio no disponible",
+            504 => "Tiempo de espera de la puerta de enlace",
+
+            _ => ((HttpStatusCode)statusCode).ToString()
+        };
+    }
+}
+EOF
 
 # =========================
 # PAQUETES NUGET
