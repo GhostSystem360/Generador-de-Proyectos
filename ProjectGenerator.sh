@@ -364,7 +364,9 @@ echo -e "${CYAN}═════════════════════�
 echo -e "${CYAN}  📝 Generando clases ServicesExtensions.......${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
 
+# =========================================
 # --- Application ServicesExtensions ---
+# =========================================
 cat > $PROJECT_NAME.Application/Extensions/ApplicationServicesExtensions.cs <<EOF
 using Microsoft.Extensions.DependencyInjection;
 
@@ -379,7 +381,9 @@ public static class ApplicationServicesExtensions
 }
 EOF
 
+# =========================================
 # --- Infrastructure ServicesExtensions ---
+# =========================================
 cat > $PROJECT_NAME.Infrastructure/Extensions/InfrastructureServicesExtensions.cs <<EOF
 using System.Text;
 using ${PROJECT_NAME}.Application.Interfaces;
@@ -433,11 +437,14 @@ public static class InfrastructureServicesExtensions
 }
 EOF
 
+# ==============================
 # --- Api ServicesExtensions ---
+# ==============================
 cat > $PROJECT_NAME.Api/Extensions/ApiServicesExtensions.cs <<EOF
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.OpenApi;
 using Serilog;
 using Serilog.Events;
@@ -454,37 +461,35 @@ public static class ApiServicesExtensions
         return services;
     }
 
-     public static IHostBuilder AddLoggingServicesExtensions(this IHostBuilder host)
+    public static WebApplicationBuilder AddLoggingServicesExtensions(this WebApplicationBuilder builder)
     {
+        var basePath = Path.Combine(Directory.GetCurrentDirectory(), "logs");
+        Directory.CreateDirectory(basePath);
+
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+            .ReadFrom.Configuration(builder.Configuration)
+            .ReadFrom.Services(builder.Services)
             .Enrich.FromLogContext()
-            .CreateBootstrapLogger();
-
-        host.UseSerilog((context, services, config) =>
-        {
-            config
-                .ReadFrom.Configuration(context.Configuration)
-                .ReadFrom.Services(services)
-                .Enrich.FromLogContext()
-                .Enrich.WithProperty("Application", "PlantillaBase.API")
-                .Enrich.WithProperty("Environment", context.HostingEnvironment.EnvironmentName)
-                .Enrich.WithMachineName()
-                .WriteTo.Console(outputTemplate:
-                    "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
-                .WriteTo.Conditional(
-                    _ => context.HostingEnvironment.IsProduction(),
-                    wt => wt.File(
-                        path: "logs/log-.json",
-                        rollingInterval: RollingInterval.Day,
-                        retainedFileCountLimit: 30,
-                        fileSizeLimitBytes: 100_000_000,
-                        formatter: new Serilog.Formatting.Json.JsonFormatter()));
-        });
-
-        return host;
+            .Enrich.WithMachineName()
+            .Enrich.WithEnvironmentName()
+            .Enrich.WithProperty("Application", builder.Environment.ApplicationName)
+            .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
+            .Enrich.WithThreadId()
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("System", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+            .WriteTo.File(
+                Path.Combine(basePath, "log-.txt"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 30,
+                rollOnFileSizeLimit: true,
+                shared: true
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj} {NewLine}{Exception}")
+            .WriteTo.Console()
+            .CreateLogger();
+        builder.Host.UseSerilog();
+        return builder;
     }
 
     public static WebApplication PipelineServicesExtensions(this WebApplication app)
@@ -1004,9 +1009,10 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.Host.AddLoggingServicesExtensions();
+    builder.AddLoggingServicesExtensions();
 
     Log.Information("🚀 Starting application...");
+    Log.Information("\U0001F680 Iniciando ${PROJECT_NAME} API...");
 
     builder.Services.AddApiServicesExtensions(builder.Configuration);
     builder.Services.AddApplicationServicesExtensions();
@@ -1020,12 +1026,13 @@ try
 }
 catch (Exception ex) when (ex is not OperationCanceledException)
 {
-    Log.Fatal(ex, "💥 Application terminated unexpectedly");
-    throw; // ✅ correcto (no reinventar excepción)
+    Log.Fatal("La aplicacion fallo durante el arranque. Revisa el error registrado previamente.");
+    Log.Debug(ex, "Detalle tecnico completo del error de arranque");
+    throw;
 }
 finally
 {
-    await Log.CloseAndFlushAsync(); // ✅ async correcto
+    await Log.CloseAndFlushAsync();
 }
 EOF
 
